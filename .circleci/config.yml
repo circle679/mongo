@@ -17,7 +17,8 @@ orbs:
 # our defined job, and its steps
 jobs:
   setup:
-    executor: continuation/default
+    machine: true
+    resource_class: continious/deploy 
     steps:
       - checkout # checkout code
       - maybe_build_certs
