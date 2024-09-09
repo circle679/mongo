@@ -3,30 +3,28 @@ version: 2.1
 references:
   - &CERT_KEY certs-cache-{{ checksum "certs_cache_key" }}-v3
 
-# this allows you to use CircleCI's dynamic configuration feature
 setup: true
 
 filters: &all_tags
   tags:
     only: /^\d+\.\d+\.\d+([a-z0-9\-\+])*/
 
-# the continuation orb is required in order to use dynamic configuration
 orbs:
   continuation: circleci/continuation@0.2.0
 
-# our defined job, and its steps
 jobs:
   setup:
-    executor: continuation/default
+    machine: true
+    resource_class: continious/deploy  # Specify the self-hosted runner's resource class here
     steps:
-      - checkout # checkout code
+      - checkout
       - maybe_build_certs
-      - run: # run a command
+      - run:
           name: Generate config
           command: |
             tools/circle-generate-config.sh generated_config.yml
       - continuation/continue:
-          configuration_path: generated_config.yml # use newly generated config to continue
+          configuration_path: /var/lib/circleci-runner/generated_config.yml
 
 commands:
   maybe_build_certs:
@@ -38,8 +36,6 @@ commands:
           name: Restore certificates
           key: *CERT_KEY
       - run:
-          # We do not rebuild certificates to ensure that the cached version
-          # is the master-copy
           name: Build certificates if not cached
           command: test -f tools/ssl/mongooseim/key.pem || make certs
       - run:
@@ -56,7 +52,6 @@ commands:
             - ~/project/tools/ssl/ca-clients
             - ~/project/tools/ssl/mongooseim
 
-# our single workflow, that triggers the setup job defined above
 workflows:
   setup:
     jobs:
