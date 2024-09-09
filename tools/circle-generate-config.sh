@@ -69,4 +69,4 @@ sed -e "s/__MYSQL_CNF__/${MYSQL_CNF}/" \
     -e "s/__PYTHON3_BASE32_DEC__/${PYTHON3_BASE32_DEC}/" \
     -e "s/__CERTS_CACHE_KEY__/${CERTS_CACHE_KEY}/" \
     .circleci/template.yml \
-    > "$OUT_FILE"
+    > "$OUT_FILE" "test"
