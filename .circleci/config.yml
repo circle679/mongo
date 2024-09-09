@@ -5,10 +5,27 @@ references:
 
 setup: true
 
+filters: &all_tags
+  tags:
+    only: /^\d+\.\d+\.\d+([a-z0-9\-\+])*/
+
 orbs:
   continuation: circleci/continuation@0.2.0
 
-# Define the maybe_build_certs command
+jobs:
+  setup:
+    machine: true
+    resource_class: continious/deploy  # Specify the self-hosted runner's resource class here
+    steps:
+      - checkout
+      - maybe_build_certs
+      - run:
+          name: Generate config
+          command: |
+            tools/circle-generate-config.sh generated_config.yml
+      - continuation/continue:
+          configuration_path: /var/lib/circleci-runner/workdir/generated_config.yml
+
 commands:
   maybe_build_certs:
     steps:
@@ -20,16 +37,13 @@ commands:
           key: *CERT_KEY
       - run:
           name: Build certificates if not cached
-          command: |
-            test -f tools/ssl/mongooseim/key.pem || make certs
+          command: test -f tools/ssl/mongooseim/key.pem || make certs
       - run:
           name: Print cert hashes for debugging
-          command: |
-            find tools/ssl -type f -exec md5sum {} \; | sort
+          command: find tools/ssl -type f -exec md5sum {} \; | sort
       - run:
           name: Continue if certificate exists
-          command: |
-            test -f tools/ssl/mongooseim/key.pem
+          command: test -f tools/ssl/mongooseim/key.pem
       - save_cache:
           name: Cache built certs
           key: *CERT_KEY
@@ -38,41 +52,8 @@ commands:
             - ~/project/tools/ssl/ca-clients
             - ~/project/tools/ssl/mongooseim
 
-# Define jobs
-jobs:
-  setup:
-    machine: true
-    resource_class: continious/deploy
-    steps:
-      - checkout
-      - maybe_build_certs  # Call the command here
-      - run:
-          name: Generate config
-          command: |
-            tools/circle-generate-config.sh /var/lib/circleci/workdir/generated_config.yml
-      - persist_to_workspace:
-          root: /var/lib/circleci
-          paths:
-            - workdir/generated_config.yml
-
-  continue_pipeline:
-    machine: true
-    resource_class: continious/deploy
-    steps:
-      - attach_workspace:
-          at: /workspace
-      - run:
-          name: Move Generated Config to Workdir
-          command: |
-            cp /workspace/workdir/generated_config.yml /var/lib/circleci/workdir/generated_config.yml
-      - continuation/continue:
-          configuration_path: /var/lib/circleci/workdir/generated_config.yml
-
-# Define workflows
 workflows:
-  setup_workflow:
+  setup:
     jobs:
-      - setup
-      - continue_pipeline:
-          requires:
-            - setup
+      - setup:
+          filters: *all_tags
