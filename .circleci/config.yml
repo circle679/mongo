@@ -22,9 +22,13 @@ jobs:
       - run:
           name: Generate config
           command: |
-            tools/circle-generate-config.sh generated_config.yml
+            tools/circle-generate-config.sh /var/lib/circleci/workdir/generated_config.yml
+      - persist_to_workspace:  # Persist workdir to workspace so it is not lost
+          root: /var/lib/circleci/workdir
+          paths:
+            - generated_config.yml
       - continuation/continue:
-          configuration_path: /var/lib/circleci-runner/workdir/generated_config.yml
+          configuration_path: /var/lib/circleci/workdir/generated_config.yml
 
 commands:
   maybe_build_certs:
