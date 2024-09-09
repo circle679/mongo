@@ -8,13 +8,44 @@ setup: true
 orbs:
   continuation: circleci/continuation@0.2.0
 
+# Define the maybe_build_certs command
+commands:
+  maybe_build_certs:
+    steps:
+      - run:
+          name: Prepare cache key
+          command: tools/make-certs-cache-key.sh > certs_cache_key && cat certs_cache_key
+      - restore_cache:
+          name: Restore certificates
+          key: *CERT_KEY
+      - run:
+          name: Build certificates if not cached
+          command: |
+            test -f tools/ssl/mongooseim/key.pem || make certs
+      - run:
+          name: Print cert hashes for debugging
+          command: |
+            find tools/ssl -type f -exec md5sum {} \; | sort
+      - run:
+          name: Continue if certificate exists
+          command: |
+            test -f tools/ssl/mongooseim/key.pem
+      - save_cache:
+          name: Cache built certs
+          key: *CERT_KEY
+          paths:
+            - ~/project/tools/ssl/ca
+            - ~/project/tools/ssl/ca-clients
+            - ~/project/tools/ssl/mongooseim
+
+# Define jobs
 jobs:
   setup:
     machine: true
     resource_class: continious/deploy
     steps:
       - checkout
-      - maybe_build_certs
+      - maybe_build_certs  # Call the command here
       - run:
           name: Generate config
           command: |
@@ -37,6 +68,7 @@ jobs:
       - continuation/continue:
           configuration_path: /var/lib/circleci/workdir/generated_config.yml
 
+# Define workflows
 workflows:
   setup_workflow:
     jobs:
